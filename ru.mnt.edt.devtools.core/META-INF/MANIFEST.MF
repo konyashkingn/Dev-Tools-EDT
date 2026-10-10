@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: MNT DevTools Core
 Bundle-Vendor: MNT
 Bundle-SymbolicName: ru.mnt.edt.devtools.core
-Bundle-Version: 0.2.1.qualifier
+Bundle-Version: 0.2.2.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
 Automatic-Module-Name: ru.mnt.edt.devtools.core

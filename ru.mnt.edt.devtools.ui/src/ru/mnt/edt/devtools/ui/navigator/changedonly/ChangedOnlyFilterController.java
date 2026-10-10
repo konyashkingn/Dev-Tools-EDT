@@ -45,13 +45,20 @@ public final class ChangedOnlyFilterController {
         }
     };
 
-    /** Применяет отбор к навигатору сразу после его открытия. */
+    /**
+     * Применяет отбор к навигатору, когда он открывается или становится видимым.
+     * При запуске EDT дерево навигатора может создаваться позже открытия вида,
+     * поэтому проверяем на обоих событиях (повторное применение ничего не делает).
+     */
     private final IPartListener2 partListener = new IPartListener2() {
         @Override
         public void partOpened(IWorkbenchPartReference ref) {
-            if (EdtNavigator.VIEW_ID.equals(ref.getId())) {
-                EdtNavigator.viewerOf(ref.getPart(false)).ifPresent(ChangedOnlyFilterController.this::apply);
-            }
+            applyIfNavigator(ref);
+        }
+
+        @Override
+        public void partVisible(IWorkbenchPartReference ref) {
+            applyIfNavigator(ref);
         }
     };
 
@@ -83,6 +90,16 @@ public final class ChangedOnlyFilterController {
 
     public static ChangedOnlyFilterController getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * Подключает контроллер позже, если этого ещё не случилось. Вызывается при отрисовке кнопки:
+     * так отбор восстанавливается при запуске EDT, даже если ранний запуск плагинов отключён.
+     */
+    public void ensureInstalled() {
+        if (!installed) {
+            PlatformUI.getWorkbench().getDisplay().asyncExec(this::install);
+        }
     }
 
     /** Подключает слушатели и применяет сохранённое состояние. Повторный вызов ничего не делает. */
@@ -119,6 +136,12 @@ public final class ChangedOnlyFilterController {
 
     private void hook(IWorkbenchWindow window) {
         window.getPartService().addPartListener(partListener);
+    }
+
+    private void applyIfNavigator(IWorkbenchPartReference ref) {
+        if (EdtNavigator.VIEW_ID.equals(ref.getId())) {
+            EdtNavigator.viewerOf(ref.getPart(false)).ifPresent(this::apply);
+        }
     }
 
     /** Слежение за изменениями нужно только при включённом отборе. */

@@ -88,7 +88,7 @@ public class ChangedOnlyFilter extends ViewerFilter {
             // Быстрая проверка по типу, затем по содержимому: изменения могут относиться
             // к удалённым объектам, которых в папке уже нет, — тогда папка пустая и не нужна
             return snapshot.hasChangesOfType(projectName, folderType)
-                && hasVisibleChild(viewer, parentPath.createChildPath(element), depth);
+                && folderHasChangedObject(viewer, parentPath.createChildPath(element), projectName);
         }
 
         return hasVisibleChild(viewer, parentPath.createChildPath(element), depth);
@@ -104,6 +104,40 @@ public class ChangedOnlyFilter extends ViewerFilter {
             }
         }
         return false;
+    }
+
+    /**
+     * Есть ли в папке изменённый объект. Проверяем только непосредственное содержимое папки,
+     * без рекурсии: это точнее и быстрее. Если содержимое не удалось распознать как объекты,
+     * доверяем проверке по типу (папку не скрываем).
+     */
+    private boolean folderHasChangedObject(Viewer viewer, TreePath folderPath, String projectName) {
+        Boolean cached = groupCache.get(folderPath);
+        if (cached != null) {
+            return cached;
+        }
+        Object[] children = children(viewer, folderPath);
+        boolean result;
+        if (children == null) {
+            result = true;
+        } else {
+            boolean sawObjects = false;
+            boolean changed = false;
+            for (Object child : children) {
+                MdObjectRef ref = EdtNavigatorNodes.mdObject(child);
+                if (ref == null) {
+                    continue;
+                }
+                sawObjects = true;
+                if (snapshot.isChanged(projectName, ref)) {
+                    changed = true;
+                    break;
+                }
+            }
+            result = changed || !sawObjects && children.length > 0;
+        }
+        groupCache.put(folderPath, result);
+        return result;
     }
 
     /** Группа без собственного типа видна, если виден хотя бы один её дочерний узел. */
