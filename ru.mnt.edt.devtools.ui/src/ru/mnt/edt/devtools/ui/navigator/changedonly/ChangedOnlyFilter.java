@@ -28,7 +28,7 @@ import ru.mnt.edt.devtools.ui.edt.EdtNavigatorNodes;
  * <li>проект конфигурации/расширения — если в нём есть изменения;</li>
  * <li>всё внутри изменённого объекта (реквизиты, формы…) — показываем;</li>
  * <li>объект верхнего уровня — если изменён;</li>
- * <li>папка («Справочники») — если есть изменённые объекты её типа;</li>
+ * <li>папка («Справочники») — если в ней есть видимый изменённый объект;</li>
  * <li>прочие группы («Общие») — если виден хотя бы один дочерний узел.</li>
  * </ul>
  * Вызывается только из UI-потока.
@@ -85,7 +85,10 @@ public class ChangedOnlyFilter extends ViewerFilter {
 
         String folderType = EdtNavigatorNodes.folderType(element);
         if (folderType != null) {
-            return snapshot.hasChangesOfType(projectName, folderType);
+            // Быстрая проверка по типу, затем по содержимому: изменения могут относиться
+            // к удалённым объектам, которых в папке уже нет, — тогда папка пустая и не нужна
+            return snapshot.hasChangesOfType(projectName, folderType)
+                && hasVisibleChild(viewer, parentPath.createChildPath(element), depth);
         }
 
         return hasVisibleChild(viewer, parentPath.createChildPath(element), depth);
