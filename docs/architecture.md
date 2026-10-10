@@ -28,16 +28,21 @@
 core
   edt/EdtNatures            ID natures проектов EDT
   edt/ProjectKind           вид проекта: конфигурация / расширение / внешние объекты / прочее
-  (шаг 2) changes/IChangeSource, ChangeTracker, ChangedObjectsSnapshot, edt/GitPathMapper, edt/EGitChangeSource
+  changes/MdObjectRef            ссылка на объект: тип (имя класса модели) + имя
+  changes/ChangedObjectsSnapshot неизменяемый снимок изменённых объектов по проектам
+  changes/IChangeSource          источник изменённых файлов
+  changes/ChangeTracker          подписка, пересчёт в фоне с задержкой 300 мс
+  edt/EdtSourcePaths             src/<Папка>/<Имя>/... → объект; таблица «папка → тип»
+  edt/EGitChangeSource           кэш Git-статуса EGit (внутренний API EGit 6.8!)
 
 ui
   edt/EdtNavigator          ID вида, поиск дерева навигатора
+  edt/EdtNavigatorNodes     распознавание узлов: проект, объект EMF, папка (getContentFeature через reflection)
   navigator/changedonly/
     ToggleChangedOnlyHandler    кнопка: переключение, иконка и подсказка по состоянию
     ChangedOnlyFilterController подключает фильтр ко всем открытым навигаторам
     ChangedOnlyStartup          восстанавливает отбор при запуске EDT
-    ChangedOnlyFilter           фильтр дерева (шаг 1: заглушка)
-  diagnostics/NavigatorNodeDump ВРЕМЕННО: пишет устройство узлов в ~/edt_navigator_nodes.txt
+    ChangedOnlyFilter           фильтр дерева (правила видимости узлов)
 ```
 
 ## Поток данных (целевой)
@@ -55,7 +60,19 @@ EGit (кэш статуса) ─► IChangeSource ─► ChangeTracker ─► Ch
 
 ## Этапы
 
-1. **Каркас** — модули, сборка, кнопка, диагностика узлов. ← сейчас
-2. **Сервис изменений** — с логированием изменённых объектов.
-3. **Фильтр** — скрытие неизменённого, обновление при смене Git-статуса, удаление диагностики.
-4. **Доводка** — иконки, сайт обновлений, мелочи.
+1. **Каркас** — модули, сборка, кнопка, диагностика узлов. ✓ (0.1.0)
+2. **Сервис изменений** ✓ (0.2.0)
+3. **Фильтр** — скрытие неизменённого, обновление при смене Git-статуса. ✓ (0.2.0)
+4. **Доводка** — иконки, положение кнопки, производительность на больших изменениях. ← сейчас
+
+## Устройство узлов навигатора (EDT 2026.1, по диагностике)
+
+| Узел | Класс | Как распознаём |
+|---|---|---|
+| Проект | `IProject`, родитель — WorkspaceRoot | `instanceof IProject` |
+| Корень конфигурации | `mdclass.impl.ConfigurationImpl` | EClass `Configuration` |
+| Папка («Справочники») | `md.ui.navigator.adapters.*NavigatorAdapter$Folder` | `getContentFeature()` → тип элементов ссылки |
+| Группа «Общие» | `CommonNavigatorAdapter` | по дочерним узлам |
+| Объект | `mdclass.impl.CatalogImpl` и т.п. | EClass + атрибут `name` |
+
+Родитель любого узла внутри проекта передаётся фильтру как `TreePath`, первый сегмент — проект.

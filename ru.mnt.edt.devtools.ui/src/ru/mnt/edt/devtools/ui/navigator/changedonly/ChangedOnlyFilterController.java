@@ -1,9 +1,11 @@
 package ru.mnt.edt.devtools.ui.navigator.changedonly;
 
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 import org.eclipse.core.commands.Command;
 import org.eclipse.core.commands.State;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IPartListener2;
 import org.eclipse.ui.IWindowListener;
 import org.eclipse.ui.IWorkbench;
@@ -15,11 +17,14 @@ import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.handlers.RegistryToggleState;
 import org.eclipse.ui.navigator.CommonViewer;
 
+import ru.mnt.edt.devtools.core.changes.ChangeTracker;
+import ru.mnt.edt.devtools.core.changes.ChangedObjectsSnapshot;
 import ru.mnt.edt.devtools.ui.edt.EdtNavigator;
 
 /**
  * Включает и выключает отбор «Только изменённые» во всех открытых навигаторах.
  * Состояние кнопки хранится в состоянии команды (RegistryToggleState) и переживает перезапуск EDT.
+ * Пока отбор включён, подписан на {@link ChangeTracker} и обновляет навигатор при изменениях в Git.
  * Все методы вызываются из UI-потока.
  */
 public final class ChangedOnlyFilterController {
@@ -30,6 +35,15 @@ public final class ChangedOnlyFilterController {
 
     private final ChangedOnlyFilter filter = new ChangedOnlyFilter();
     private boolean installed;
+    private boolean subscribed;
+
+    /** Новый снимок изменений приходит из фонового потока — переносим в UI-поток. */
+    private final Consumer<ChangedObjectsSnapshot> trackerListener = snapshot -> {
+        Display display = PlatformUI.getWorkbench().getDisplay();
+        if (!display.isDisposed()) {
+            display.asyncExec(() -> onSnapshot(snapshot));
+        }
+    };
 
     /** Применяет отбор к навигатору сразу после его открытия. */
     private final IPartListener2 partListener = new IPartListener2() {
@@ -82,6 +96,7 @@ public final class ChangedOnlyFilterController {
         for (IWorkbenchWindow window : workbench.getWorkbenchWindows()) {
             hook(window);
         }
+        updateSubscription();
         applyToAllNavigators();
     }
 
@@ -97,12 +112,41 @@ public final class ChangedOnlyFilterController {
         if (state != null) {
             state.setValue(Boolean.valueOf(enabled));
         }
+        updateSubscription();
         applyToAllNavigators();
         commandService().refreshElements(COMMAND_ID, null);
     }
 
     private void hook(IWorkbenchWindow window) {
         window.getPartService().addPartListener(partListener);
+    }
+
+    /** Слежение за изменениями нужно только при включённом отборе. */
+    private void updateSubscription() {
+        boolean enabled = isEnabled();
+        if (enabled && !subscribed) {
+            subscribed = true;
+            filter.setSnapshot(ChangeTracker.getInstance().current());
+            ChangeTracker.getInstance().addListener(trackerListener);
+        } else if (!enabled && subscribed) {
+            subscribed = false;
+            ChangeTracker.getInstance().removeListener(trackerListener);
+        }
+    }
+
+    /** Пришли новые изменения: обновляем навигаторы, в которых включён отбор. */
+    private void onSnapshot(ChangedObjectsSnapshot snapshot) {
+        if (!subscribed) {
+            return;
+        }
+        filter.setSnapshot(snapshot);
+        for (IWorkbenchWindow window : PlatformUI.getWorkbench().getWorkbenchWindows()) {
+            for (IWorkbenchPage page : window.getPages()) {
+                EdtNavigator.findViewer(page)
+                    .filter(viewer -> Arrays.asList(viewer.getFilters()).contains(filter))
+                    .ifPresent(viewer -> viewer.refresh());
+            }
+        }
     }
 
     private void applyToAllNavigators() {
