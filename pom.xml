@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Корневой проект сборки плагина MNT DevTools для 1C:EDT.
+  Сборка: mvn clean verify (нужны Maven 3.9+ и JDK 17).
+  Результат (сайт обновлений): ru.mnt.edt.devtools.repository/target/repository
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>ru.mnt.edt.devtools</groupId>
+  <artifactId>ru.mnt.edt.devtools.parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <properties>
+    <tycho.version>4.0.8</tycho.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <modules>
+    <module>ru.mnt.edt.devtools.target</module>
+    <module>ru.mnt.edt.devtools.core</module>
+    <module>ru.mnt.edt.devtools.ui</module>
+    <module>ru.mnt.edt.devtools.feature</module>
+    <module>ru.mnt.edt.devtools.repository</module>
+  </modules>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>tycho-maven-plugin</artifactId>
+        <version>${tycho.version}</version>
+        <extensions>true</extensions>
+      </plugin>
+
+      <!-- Целевая платформа = установленный EDT (см. модуль ru.mnt.edt.devtools.target) -->
+      <plugin>
+        <groupId>org.eclipse.tycho</groupId>
+        <artifactId>target-platform-configuration</artifactId>
+        <version>${tycho.version}</version>
+        <configuration>
+          <target>
+            <artifact>
+              <groupId>ru.mnt.edt.devtools</groupId>
+              <artifactId>ru.mnt.edt.devtools.target</artifactId>
+              <version>${project.version}</version>
+            </artifact>
+          </target>
+          <!-- EDT для macOS поставляется только под x86_64 -->
+          <environments>
+            <environment>
+              <os>macosx</os>
+              <ws>cocoa</ws>
+              <arch>x86_64</arch>
+            </environment>
+          </environments>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

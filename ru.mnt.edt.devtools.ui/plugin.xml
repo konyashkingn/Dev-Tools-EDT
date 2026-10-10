@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <!-- Команда «Только изменённые объекты». Состояние вкл/выкл сохраняется между запусками EDT. -->
+   <extension point="org.eclipse.ui.commands">
+      <category
+            id="ru.mnt.edt.devtools.ui.category"
+            name="%category.name"/>
+      <command
+            id="ru.mnt.edt.devtools.ui.commands.toggleChangedOnly"
+            categoryId="ru.mnt.edt.devtools.ui.category"
+            name="%command.toggleChangedOnly.name"
+            description="%command.toggleChangedOnly.description"
+            defaultHandler="ru.mnt.edt.devtools.ui.navigator.changedonly.ToggleChangedOnlyHandler">
+         <state id="org.eclipse.ui.commands.toggleState">
+            <class class="org.eclipse.ui.handlers.RegistryToggleState">
+               <parameter name="default" value="false"/>
+               <parameter name="persisted" value="true"/>
+            </class>
+         </state>
+      </command>
+   </extension>
+
+   <!-- Кнопка на панели инструментов Навигатора EDT (ID вида: com._1c.g5.v8.dt.ui2.navigator) -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="toolbar:com._1c.g5.v8.dt.ui2.navigator">
+         <command
+               id="ru.mnt.edt.devtools.ui.toolbar.toggleChangedOnly"
+               commandId="ru.mnt.edt.devtools.ui.commands.toggleChangedOnly"
+               icon="icons/etool16/changed_only_off.png"
+               tooltip="%command.toggleChangedOnly.tooltip"
+               style="toggle"/>
+      </menuContribution>
+   </extension>
+
+   <!-- Восстановление отбора при запуске EDT, если кнопка была нажата -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="ru.mnt.edt.devtools.ui.navigator.changedonly.ChangedOnlyStartup"/>
+   </extension>
+
+</plugin>

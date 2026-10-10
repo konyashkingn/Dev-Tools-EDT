@@ -1,0 +1,9 @@
+# Результаты сборки
+target/
+bin/
+*.class
+
+# macOS и IDE
+.DS_Store
+.metadata/
+*.log
