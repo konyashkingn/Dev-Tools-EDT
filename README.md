@@ -52,7 +52,7 @@ JAVA_HOME=$(/usr/libexec/java_home -v 17) mvn clean verify
 
 ## Установка в EDT
 
-> **macOS + 1C:EDT Start:** если плагин ставится, но не загружается — один раз выполните исправление из [docs/install-macos-edt-start.md](docs/install-macos-edt-start.md).
+> **macOS + 1C:EDT Start:** после установки или обновления плагина закройте EDT и выполните `bash tools/edt-doctor.sh --fix` (подробности: [docs/install-macos-edt-start.md](docs/install-macos-edt-start.md)).
 
 **Справка → Установить новое ПО → Добавить → Локальный…** → выбрать папку сайта обновлений → отметить «MNT DevTools для 1C:EDT» → Далее → перезапустить EDT.
 
