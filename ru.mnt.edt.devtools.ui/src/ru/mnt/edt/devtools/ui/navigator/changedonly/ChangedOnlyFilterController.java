@@ -56,6 +56,10 @@ public final class ChangedOnlyFilterController {
     private final IPartListener2 partListener = new IPartListener2() {
         @Override
         public void partOpened(IWorkbenchPartReference ref) {
+            if (EdtNavigator.VIEW_ID.equals(ref.getId())) {
+                // Панель навигатора создаётся из сохранённой модели окна — приводим кнопку к факту
+                ToolbarButtonSync.sync(isEnabled());
+            }
             applyIfNavigator(ref);
         }
 
@@ -99,6 +103,7 @@ public final class ChangedOnlyFilterController {
             if (isEnabled()) {
                 setEnabled(false);
             }
+            ToolbarButtonSync.sync(false);
             return true;
         }
 
@@ -129,6 +134,7 @@ public final class ChangedOnlyFilterController {
         }
         updateSubscription();
         applyToAllNavigators();
+        DevToolsLog.log("Контроллер отбора подключён"); //$NON-NLS-1$
     }
 
     /** Включён ли отбор (нажата ли кнопка). */
@@ -147,6 +153,7 @@ public final class ChangedOnlyFilterController {
         updateSubscription();
         applyToAllNavigators();
         commandService().refreshElements(COMMAND_ID, null);
+        ToolbarButtonSync.sync(enabled);
     }
 
     private void hook(IWorkbenchWindow window) {

@@ -11,7 +11,7 @@
 
   <groupId>ru.mnt.edt.devtools</groupId>
   <artifactId>ru.mnt.edt.devtools.parent</artifactId>
-  <version>0.2.5-SNAPSHOT</version>
+  <version>0.2.6-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <properties>

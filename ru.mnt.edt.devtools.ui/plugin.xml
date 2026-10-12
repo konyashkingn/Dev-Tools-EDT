@@ -34,4 +34,9 @@
       </menuContribution>
    </extension>
 
+   <!-- При запуске EDT: кнопка приводится к виду «выключено», подключается контроллер отбора -->
+   <extension point="org.eclipse.ui.startup">
+      <startup class="ru.mnt.edt.devtools.ui.navigator.changedonly.ChangedOnlyStartup"/>
+   </extension>
+
 </plugin>

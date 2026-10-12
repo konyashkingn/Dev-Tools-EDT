@@ -7,6 +7,7 @@ import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.ui.commands.IElementUpdater;
 import org.eclipse.ui.menus.UIElement;
 
+import ru.mnt.edt.devtools.core.DevToolsLog;
 import ru.mnt.edt.devtools.ui.DevToolsImages;
 import ru.mnt.edt.devtools.ui.Messages;
 
@@ -18,6 +19,7 @@ public class ToggleChangedOnlyHandler extends AbstractHandler implements IElemen
 
     @Override
     public Object execute(ExecutionEvent event) {
+        DevToolsLog.log("Нажата кнопка отбора"); //$NON-NLS-1$
         ChangedOnlyFilterController controller = ChangedOnlyFilterController.getInstance();
         controller.install();
         controller.setEnabled(!controller.isEnabled());
