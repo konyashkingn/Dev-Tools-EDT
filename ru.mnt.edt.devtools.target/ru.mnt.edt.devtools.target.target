@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?pde version="3.8"?>
 <!--
-  Целевая платформа: плагины установленного 1C:EDT.
-  При переходе на другую версию EDT меняется только путь ниже.
+  Целевая платформа: модули рабочей установки 1C:EDT Start (по умолчанию «1C_EDT 2026.1»).
+  Папку ~/.mnt-edt-target готовит скрипт tools/edt-target.sh из bundles.info установки —
+  запускать один раз и после каждого обновления EDT.
   В Eclipse: открыть этот файл и нажать «Set as Active Target Platform».
 -->
-<target name="1C:EDT 2026.1.1" sequenceNumber="1">
+<target name="1C:EDT (установка EDT Start)" sequenceNumber="2">
   <locations>
-    <location path="/Applications/1C/1CE/components/1c-edt-2026.1.1+1-x86_64/1cedt (2026.1.1+1).app/Contents/Eclipse" type="Directory"/>
+    <location path="${env_var:HOME}/.mnt-edt-target" type="Directory"/>
   </locations>
   <environment>
     <os>macosx</os>

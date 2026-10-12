@@ -8,7 +8,7 @@
 
 | Что | Версия |
 |---|---|
-| 1C:EDT | 2026.1.1 (Eclipse 4.30 / 2023-12, EGit 6.8.12) |
+| 1C:EDT | 2026.1.3 через 1C:EDT Start (Eclipse 4.30 / 2023-12, EGit 6.8.12) |
 | Java в EDT | Axiom JDK 17.0.16, x86_64 |
 | Уровень компиляции | Java 17 |
 | Сборка | Maven 3.9+ и Tycho 4 (или экспорт из Eclipse) |
@@ -16,7 +16,7 @@
 ## Структура
 
 ```
-ru.mnt.edt.devtools.target      — целевая платформа: плагины установленного EDT
+ru.mnt.edt.devtools.target      — целевая платформа: модули рабочей установки EDT (~/.mnt-edt-target)
 ru.mnt.edt.devtools.core        — логика без UI (проекты, изменения, обёртки над API EDT)
 ru.mnt.edt.devtools.ui          — интерфейс: кнопки, фильтры, иконки
 ru.mnt.edt.devtools.feature     — устанавливаемая единица
@@ -30,9 +30,16 @@ ru.mnt.edt.devtools.repository  — сайт обновлений (p2), из н�
 3. **Комментарии** короткие, на русском, объясняют «зачем», а не пересказывают код.
 4. **Внешний вид** (размещение кнопок, названия, иконки, тексты) согласуется с Германом до реализации.
 5. **Строки интерфейса** только в `.properties` (кириллица хранится как `\uXXXX`), не в коде.
-6. Версия плагина в `MANIFEST.MF`/`feature.xml` (`0.1.0.qualifier`) и в `pom.xml` (`0.1.0-SNAPSHOT`) меняется синхронно.
+6. Версия плагина в `MANIFEST.MF`/`feature.xml` (`X.Y.Z.qualifier`) и в `pom.xml` (`X.Y.Z-SNAPSHOT`) меняется синхронно.
 
 ## Сборка
+
+Один раз (и после каждого обновления EDT) подготовить целевую платформу — ссылки на модули рабочей установки EDT Start:
+
+```bash
+bash tools/edt-target.sh                    # установка «1C_EDT 2026.1»
+bash tools/edt-target.sh "1C_EDT 2026.2"    # если собирать под другую установку
+```
 
 ### Вариант 1: Maven (рекомендуется)
 
@@ -60,5 +67,5 @@ JAVA_HOME=$(/usr/libexec/java_home -v 17) mvn clean verify
 
 ## Смена версии EDT
 
-1. Поменять путь в `ru.mnt.edt.devtools.target/ru.mnt.edt.devtools.target.target`.
+1. Выполнить `bash tools/edt-target.sh "<имя установки EDT Start>"` — целевая платформа переключится на неё.
 2. Собрать. Если сломалось, смотреть пакеты `*.edt`.
