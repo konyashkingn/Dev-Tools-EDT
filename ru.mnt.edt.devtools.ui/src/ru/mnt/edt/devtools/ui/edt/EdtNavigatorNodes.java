@@ -66,7 +66,7 @@ public final class EdtNavigatorNodes {
             return MdObjectRef.CONFIGURATION;
         }
         EStructuralFeature nameFeature = eClass.getEStructuralFeature(NAME_FEATURE);
-        Object name = nameFeature == null ? null : object.eGet(nameFeature);
+        Object name = nameFeature == null ? null : object.eGet(nameFeature, true);
         return name instanceof String text
             ? new MdObjectRef(eClass.getName(), Normalizer.normalize(text, Normalizer.Form.NFC)) : null;
     }

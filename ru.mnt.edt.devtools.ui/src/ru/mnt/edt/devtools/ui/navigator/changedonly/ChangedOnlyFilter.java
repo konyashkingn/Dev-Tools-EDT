@@ -28,15 +28,14 @@ import ru.mnt.edt.devtools.ui.edt.EdtNavigatorNodes;
  * <li>проект конфигурации/расширения — если в нём есть изменения;</li>
  * <li>всё внутри изменённого объекта (реквизиты, формы…) — показываем;</li>
  * <li>объект верхнего уровня — если изменён;</li>
- * <li>папка («Справочники») — если в ней есть видимый изменённый объект;</li>
- * <li>прочие группы («Общие») — если виден хотя бы один дочерний узел.</li>
+ * <li>папка («Справочники») и группа («Общие») — если виден хотя бы один дочерний узел.</li>
  * </ul>
  * Вызывается только из UI-потока.
  */
 public class ChangedOnlyFilter extends ViewerFilter {
 
     /** Защита от слишком глубокой проверки вложенных групп. */
-    private static final int MAX_GROUP_DEPTH = 4;
+    private static final int MAX_GROUP_DEPTH = 6;
 
     private ChangedObjectsSnapshot snapshot = ChangedObjectsSnapshot.NOT_READY;
     private final Map<TreePath, Boolean> groupCache = new HashMap<>();
@@ -83,21 +82,15 @@ public class ChangedOnlyFilter extends ViewerFilter {
             return !EdtSourcePaths.isTopLevelType(ref.type()) || snapshot.isChanged(projectName, ref);
         }
 
+        // Папка («Справочники»): сначала быстрая проверка по типу. Любой узел-группа (папка или «Общие»)
+        // виден, только если виден хотя бы один его дочерний узел — по тем же правилам, что применяются
+        // при раскрытии. Так в дереве не бывает пустых папок.
         String folderType = EdtNavigatorNodes.folderType(element);
-        if (folderType != null) {
-            // Быстрая проверка по типу, затем по содержимому: изменения могут относиться
-            // к удалённым объектам, которых в папке уже нет, — тогда папка пустая и не нужна
-            return snapshot.hasChangesOfType(projectName, folderType)
-                && folderHasChangedObject(viewer, parentPath.createChildPath(element), projectName, folderType);
+        if (folderType != null && !snapshot.hasChangesOfType(projectName, folderType)) {
+            return false;
         }
-
-        TreePath groupPath = parentPath.createChildPath(element);
-        boolean known = groupCache.containsKey(groupPath);
-        boolean visible = hasVisibleChild(viewer, groupPath, depth);
-        if (!known && visible) {
-            FilterTrace.log("группа видна: " + element.getClass().getName() + " depth=" + depth); //$NON-NLS-1$ //$NON-NLS-2$
-        }
-        return visible;
+        return hasVisibleChild(viewer, parentPath.createChildPath(element), depth,
+            folderType != null ? folderType : element.getClass().getSimpleName());
     }
 
     /** Есть ли среди предков узла изменённый объект верхнего уровня. */
@@ -113,66 +106,42 @@ public class ChangedOnlyFilter extends ViewerFilter {
     }
 
     /**
-     * Есть ли в папке изменённый объект. Проверяем только непосредственное содержимое папки,
-     * без рекурсии: это точнее и быстрее. Если содержимое не удалось распознать как объекты,
-     * доверяем проверке по типу (папку не скрываем).
+     * Виден ли хотя бы один дочерний узел группы. Результат кэшируется до следующего снимка.
+     * Слишком глубокую вложенность не проверяем и группу скрываем: в навигаторе EDT
+     * группы вложены не глубже 2–3 уровней.
      */
-    private boolean folderHasChangedObject(Viewer viewer, TreePath folderPath, String projectName, String type) {
-        Boolean cached = groupCache.get(folderPath);
-        if (cached != null) {
-            return cached;
-        }
-        Object[] children = children(viewer, folderPath);
-        boolean result;
-        String reason;
-        if (children == null) {
-            result = true;
-            reason = "содержимое недоступно"; //$NON-NLS-1$
-        } else {
-            boolean sawObjects = false;
-            MdObjectRef changed = null;
-            for (Object child : children) {
-                MdObjectRef ref = EdtNavigatorNodes.mdObject(child);
-                if (ref == null) {
-                    continue;
-                }
-                sawObjects = true;
-                if (snapshot.isChanged(projectName, ref)) {
-                    changed = ref;
-                    break;
-                }
-            }
-            result = changed != null || !sawObjects && children.length > 0;
-            reason = changed != null ? "изменён " + changed //$NON-NLS-1$
-                : "объектов " + (sawObjects ? "распознано" : "не распознано") + ", элементов " + children.length //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
-                    + (children.length > 0 ? ", первый: " + children[0].getClass().getName() : ""); //$NON-NLS-1$ //$NON-NLS-2$
-        }
-        FilterTrace.log("папка " + type + (result ? " видна" : " скрыта") + ": " + reason); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
-        groupCache.put(folderPath, result);
-        return result;
-    }
-
-    /** Группа без собственного типа видна, если виден хотя бы один её дочерний узел. */
-    private boolean hasVisibleChild(Viewer viewer, TreePath path, int depth) {
-        if (depth >= MAX_GROUP_DEPTH) {
-            return true;
-        }
+    private boolean hasVisibleChild(Viewer viewer, TreePath path, int depth, String label) {
         Boolean cached = groupCache.get(path);
         if (cached != null) {
             return cached;
         }
+        if (depth >= MAX_GROUP_DEPTH) {
+            return false;
+        }
         Object[] children = children(viewer, path);
-        boolean visible = children == null; // не смогли узнать содержимое — не скрываем
+        boolean visible = false;
+        Object firstVisible = null;
         if (children != null) {
             for (Object child : children) {
                 if (isVisible(viewer, path, child, depth + 1)) {
                     visible = true;
+                    firstVisible = child;
                     break;
                 }
             }
         }
         groupCache.put(path, visible);
+        FilterTrace.log(label + (visible ? " видна" : " скрыта") + ": элементов " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+            + (children == null ? "?" : children.length) //$NON-NLS-1$
+            + (children != null && children.length > 0 ? ", первый " + describe(children[0]) : "") //$NON-NLS-1$ //$NON-NLS-2$
+            + (firstVisible != null ? ", виден " + describe(firstVisible) : "")); //$NON-NLS-1$ //$NON-NLS-2$
         return visible;
+    }
+
+    /** ВРЕМЕННО: описание узла для журнала. */
+    private static String describe(Object node) {
+        MdObjectRef ref = EdtNavigatorNodes.mdObject(node);
+        return node.getClass().getSimpleName() + (ref != null ? "(" + ref + ")" : ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
     }
 
     private static Object[] children(Viewer viewer, TreePath path) {
