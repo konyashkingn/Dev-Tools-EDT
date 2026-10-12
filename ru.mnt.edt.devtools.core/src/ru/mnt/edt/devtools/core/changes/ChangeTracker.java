@@ -14,6 +14,7 @@ import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 
+import ru.mnt.edt.devtools.core.DevToolsLog;
 import ru.mnt.edt.devtools.core.edt.EGitChangeSource;
 import ru.mnt.edt.devtools.core.edt.EdtSourcePaths;
 
@@ -83,6 +84,7 @@ public final class ChangeTracker {
         } catch (RuntimeException e) {
             // Ошибка источника не должна ломать навигатор: показываем всё, как без отбора
             ILog.of(ChangeTracker.class).error("Не удалось получить изменения из Git", e); //$NON-NLS-1$
+            DevToolsLog.log("Ошибка получения изменений: " + e); //$NON-NLS-1$
             next = ChangedObjectsSnapshot.NOT_READY;
         }
         if (!next.isReady() && !listeners.isEmpty()) {
@@ -94,8 +96,8 @@ public final class ChangeTracker {
         }
         snapshot = next;
         if (next.isReady()) {
-            // ВРЕМЕННО (0.2.2): список изменённых объектов и файла-причины в журнал EDT для отладки
-            ILog.of(ChangeTracker.class).info("Изменённые объекты (" + next.size() + "):" + lastTrace); //$NON-NLS-1$ //$NON-NLS-2$
+            // ВРЕМЕННО: список изменённых объектов и файла-причины в журнал EDT для отладки
+            DevToolsLog.log("Изменённые объекты (" + next.size() + "):" + lastTrace); //$NON-NLS-1$ //$NON-NLS-2$
         }
         for (Consumer<ChangedObjectsSnapshot> listener : listeners) {
             listener.accept(next);

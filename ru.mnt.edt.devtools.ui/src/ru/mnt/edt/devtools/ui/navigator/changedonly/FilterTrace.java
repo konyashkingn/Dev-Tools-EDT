@@ -1,9 +1,9 @@
 package ru.mnt.edt.devtools.ui.navigator.changedonly;
 
-import org.eclipse.core.runtime.ILog;
+import ru.mnt.edt.devtools.core.DevToolsLog;
 
 /**
- * ВРЕМЕННО (0.2.4): решения фильтра по папкам и группам в журнал EDT,
+ * ВРЕМЕННО: решения фильтра по папкам и группам в ~/mnt-devtools.log,
  * чтобы разобраться, почему видна лишняя папка. Удалить после отладки.
  */
 final class FilterTrace {
@@ -12,6 +12,6 @@ final class FilterTrace {
     }
 
     static void log(String message) {
-        ILog.of(FilterTrace.class).info("[ChangedOnly] " + message); //$NON-NLS-1$
+        DevToolsLog.log("[ChangedOnly] " + message); //$NON-NLS-1$
     }
 }

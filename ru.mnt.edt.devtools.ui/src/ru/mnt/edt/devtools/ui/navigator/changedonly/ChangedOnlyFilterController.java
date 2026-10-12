@@ -10,6 +10,7 @@ import org.eclipse.ui.IPartListener2;
 import org.eclipse.ui.IWindowListener;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchListener;
 import org.eclipse.ui.IWorkbenchPartReference;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
@@ -17,13 +18,15 @@ import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.handlers.RegistryToggleState;
 import org.eclipse.ui.navigator.CommonViewer;
 
+import ru.mnt.edt.devtools.core.DevToolsLog;
 import ru.mnt.edt.devtools.core.changes.ChangeTracker;
 import ru.mnt.edt.devtools.core.changes.ChangedObjectsSnapshot;
 import ru.mnt.edt.devtools.ui.edt.EdtNavigator;
 
 /**
  * Включает и выключает отбор «Только изменённые» во всех открытых навигаторах.
- * Состояние кнопки хранится в состоянии команды (RegistryToggleState); при запуске EDT отбор выключен.
+ * Состояние кнопки хранится в состоянии команды (RegistryToggleState); при запуске EDT отбор выключен,
+ * перед выходом из EDT отбор выключается, чтобы кнопка не сохранилась нажатой.
  * Пока отбор включён, подписан на {@link ChangeTracker} и обновляет навигатор при изменениях в Git.
  * Все методы вызываются из UI-потока.
  */
@@ -85,6 +88,26 @@ public final class ChangedOnlyFilterController {
         }
     };
 
+    /**
+     * Перед закрытием EDT выключаем отбор. Иконка и «нажатость» кнопки хранятся в модели окна EDT,
+     * которая сохраняется при выходе; без этого кнопка при следующем запуске выглядела бы нажатой,
+     * хотя отбор выключен.
+     */
+    private final IWorkbenchListener shutdownListener = new IWorkbenchListener() {
+        @Override
+        public boolean preShutdown(IWorkbench workbench, boolean forced) {
+            if (isEnabled()) {
+                setEnabled(false);
+            }
+            return true;
+        }
+
+        @Override
+        public void postShutdown(IWorkbench workbench) {
+            // не требуется
+        }
+    };
+
     private ChangedOnlyFilterController() {
     }
 
@@ -100,6 +123,7 @@ public final class ChangedOnlyFilterController {
         installed = true;
         IWorkbench workbench = PlatformUI.getWorkbench();
         workbench.addWindowListener(windowListener);
+        workbench.addWorkbenchListener(shutdownListener);
         for (IWorkbenchWindow window : workbench.getWorkbenchWindows()) {
             hook(window);
         }
@@ -119,6 +143,7 @@ public final class ChangedOnlyFilterController {
         if (state != null) {
             state.setValue(Boolean.valueOf(enabled));
         }
+        DevToolsLog.log("Отбор " + (enabled ? "включён" : "выключен")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
         updateSubscription();
         applyToAllNavigators();
         commandService().refreshElements(COMMAND_ID, null);
@@ -153,6 +178,7 @@ public final class ChangedOnlyFilterController {
             return;
         }
         filter.setSnapshot(snapshot);
+        DevToolsLog.log("Новый снимок изменений, обновляю навигатор: " + (snapshot.isReady() ? snapshot.size() + " объектов" : "не готов")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
         for (IWorkbenchWindow window : PlatformUI.getWorkbench().getWorkbenchWindows()) {
             for (IWorkbenchPage page : window.getPages()) {
                 EdtNavigator.findViewer(page)
@@ -176,8 +202,10 @@ public final class ChangedOnlyFilterController {
         boolean enabled = isEnabled();
         if (enabled && !attached) {
             viewer.addFilter(filter);
+            DevToolsLog.log("Фильтр добавлен в навигатор"); //$NON-NLS-1$
         } else if (!enabled && attached) {
             viewer.removeFilter(filter);
+            DevToolsLog.log("Фильтр убран из навигатора"); //$NON-NLS-1$
         }
     }
 
