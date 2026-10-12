@@ -7,6 +7,8 @@
 #   2. EDT загружает модули из устаревшего кэша: в bundles.info новая версия плагина,
 #      а работает старая (так было с MNT DevTools и 1С:Напарником).
 #   3. После сбоя запуска EDT ищет конфигурацию по пути с «%20» вместо пробела.
+#   4. Список модулей (bundles.info) отстаёт от установленного: плагины, поставленные до
+#      исправления п.1, числятся установленными, но загружается старая версия или ничего.
 #
 # Использование (EDT должен быть закрыт для --fix):
 #   bash edt-doctor.sh          — только проверка, ничего не меняет
@@ -81,9 +83,112 @@ check_profile() {
   fi
 }
 
+# --- 4. Список модулей против профиля установщика --------------------------------------
+# Печатает действия: «REPLACE имя старая новая файл» и «ADD имя версия файл».
+# Учитываются только модули (osgi.bundle), чей файл есть в пуле; исходники (*.source) пропускаются.
+bundles_diff() {
+  local profile_gz="$1" info="$2" pool="$3"
+  gzip -dc "$profile_gz" | perl -e '
+    my ($info, $pool) = @ARGV;
+    my $xml = do { local $/; <STDIN> };
+    my %prof;
+    while ($xml =~ m{<unit id=\x27([^\x27]+)\x27 version=\x27([^\x27]+)\x27(.*?)</unit>}gs) {
+      my ($id, $ver, $body) = ($1, $2, $3);
+      next unless $body =~ /classifier=\x27osgi\.bundle\x27/;
+      next if $id =~ /\.source$/;
+      $prof{$id} = $ver;
+    }
+    my %have;
+    open(my $fh, "<", $info) or die "нет $info\n";
+    while (<$fh>) {
+      next if /^#/;
+      my @f = split /,/;
+      next unless @f >= 3;
+      $have{$f[0]}{$f[1]} = 1;
+    }
+    for my $id (sort keys %prof) {
+      my $ver = $prof{$id};
+      next if $have{$id} && $have{$id}{$ver};
+      my $file = -e "$pool/${id}_$ver.jar" ? "${id}_$ver.jar" : -d "$pool/${id}_$ver" ? "${id}_$ver/" : undef;
+      next unless defined $file;
+      if ($have{$id}) {
+        print "REPLACE $id ", join("+", sort keys %{$have{$id}}), " $ver $file\n";
+      } else {
+        print "ADD $id $ver $file\n";
+      }
+    }
+  ' "$info" "$pool"
+}
+
+# Применяет действия bundles_diff к bundles.info (новый файл пишется рядом и подменяет старый)
+bundles_apply() {
+  local info="$1" actions="$2"
+  ACTIONS="$actions" perl -e '
+    my ($info) = @ARGV;
+    my (%replace, @add);
+    for (split /\n/, $ENV{ACTIONS}) {
+      my @a = split / /;
+      if ($a[0] eq "REPLACE") { $replace{$a[1]} = [$a[3], $a[4]]; }
+      elsif ($a[0] eq "ADD") { push @add, [$a[1], $a[2], $a[3]]; }
+    }
+    open(my $in, "<", $info) or die;
+    my (@out, $prefix, %done);
+    while (my $line = <$in>) {
+      chomp $line;
+      my @f = split /,/, $line, -1;
+      if ($line !~ /^#/ && @f >= 5) {
+        $prefix //= $1 if $f[2] =~ m{^(.*/plugins/)};
+        if (my $r = $replace{$f[0]}) {
+          next if $done{$f[0]}++;      # несколько старых версий — оставляем одну строку
+          (my $dir = $f[2]) =~ s{[^/]+/?$}{};
+          $line = join(",", $f[0], $r->[0], $dir . $r->[1], @f[3 .. $#f]);
+        }
+      }
+      push @out, $line;
+    }
+    close $in;
+    die "не найден путь к пулу в bundles.info\n" if @add && !defined $prefix;
+    push @out, join(",", $_->[0], $_->[1], $prefix . $_->[2], 4, "false") for @add;
+    open(my $o, ">", "$info.new") or die;
+    print $o "$_\n" for @out;
+    close $o;
+    rename("$info.new", $info) or die;
+  ' "$info"
+}
+
+check_bundles() {
+  local eclipse="$1" conf="$2"
+  local info="$conf/org.eclipse.equinox.simpleconfigurator/bundles.info"
+  local profile_dir="$REGISTRY/$(printf '%s' "$eclipse" | tr '/' '_').profile"
+  local latest pool
+  latest=$(ls -t "$profile_dir"/*.profile.gz 2>/dev/null | head -1)
+  [ -n "$latest" ] && [ -f "$info" ] || { ok "нет профиля или bundles.info — сверку списка модулей пропускаю"; return 1; }
+  pool=$(gzip -dc "$latest" | grep -o "name='org.eclipse.equinox.p2.cache' value='[^']*'" | head -1 | sed "s/.*value='//; s/'$//")
+  [ -n "$pool" ] || pool="$HOME/.p2/pool"
+  pool="$pool/plugins"
+
+  local actions
+  actions=$(bundles_diff "$latest" "$info" "$pool") || { say "    не удалось сравнить список модулей с профилем"; return 1; }
+  if [ -z "$actions" ]; then
+    ok "список модулей совпадает с установленным"
+    return 1
+  fi
+  problem "список модулей отстаёт от установленного (загружаются старые версии или не загружаются вовсе):"
+  printf '%s\n' "$actions" | awk '$1=="REPLACE"{print "      " $2 ": " $3 " → " $4} $1=="ADD"{print "      " $2 ": не загружается → " $3}'
+  $FIX || return 1
+
+  cp "$info" "$info.mnt-backup-$STAMP" || return 1
+  if bundles_apply "$info" "$actions"; then
+    say "    список модулей исправлен (резервная копия: $info.mnt-backup-$STAMP)"
+    return 0
+  fi
+  say "    не удалось исправить список модулей, файл не изменён"
+  return 1
+}
+
 # --- 2. Устаревший кэш модулей ----------------------------------------------------------
 check_cache() {
-  local conf="$1"
+  local conf="$1" force="${2:-false}"
   local info="$conf/org.eclipse.equinox.simpleconfigurator/bundles.info"
   local cache="$conf/org.eclipse.osgi"
   [ -f "$info" ] || { ok "нет bundles.info — пропускаю"; return; }
@@ -104,12 +209,16 @@ check_cache() {
     printf '%s\n' "$have" | grep -q "^${name//./\\.}_[0-9]" && printf '%s\n' "$file"
   done)
 
-  if [ -z "$stale" ]; then
+  if [ -z "$stale" ] && ! $force; then
     ok "кэш модулей соответствует списку модулей"
     return
   fi
-  problem "EDT загружает старые версии модулей из кэша. Должны загружаться:"
-  printf '%s\n' "$stale" | head -20 | sed 's/^/      /'
+  if [ -n "$stale" ]; then
+    problem "EDT загружает старые версии модулей из кэша. Должны загружаться:"
+    printf '%s\n' "$stale" | head -20 | sed 's/^/      /'
+  else
+    say "  • список модулей изменён — кэш нужно пересобрать"
+  fi
   $FIX || return
 
   # То же, что запуск с -clean, но без правки параметров запуска: кэш переносится в резервную
@@ -152,7 +261,11 @@ for app in "$INSTALLS"/*/1cedt.app; do
   say ""
   say "=== $(basename "$(dirname "$app")") ($(grep -h '^product.version=' "$conf/config.ini" 2>/dev/null | cut -d= -f2))"
   check_profile "$eclipse" "$conf"
-  check_cache "$conf"
+  if check_bundles "$eclipse" "$conf"; then
+    check_cache "$conf" true
+  else
+    check_cache "$conf"
+  fi
   check_encoded_path "$conf"
 done
 
