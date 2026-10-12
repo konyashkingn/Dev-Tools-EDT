@@ -9,8 +9,6 @@ import org.eclipse.e4.ui.workbench.modeling.EModelService;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.PlatformUI;
 
-import ru.mnt.edt.devtools.core.DevToolsLog;
-
 /**
  * Приводит вид кнопки в модели окна EDT к фактическому состоянию отбора.
  *
@@ -34,20 +32,16 @@ final class ToolbarButtonSync {
         MApplication application = workbench.getService(MApplication.class);
         EModelService modelService = workbench.getService(EModelService.class);
         if (application == null || modelService == null) {
-            DevToolsLog.log("Кнопка: модель окна недоступна"); //$NON-NLS-1$
             return;
         }
         List<MHandledToolItem> items = modelService.findElements(application, null, MHandledToolItem.class, null,
             EModelService.ANYWHERE | EModelService.IN_PART);
-        int count = 0;
         for (MHandledToolItem item : items) {
             MCommand command = item.getCommand();
             if (command != null && ChangedOnlyFilterController.COMMAND_ID.equals(command.getElementId())) {
                 item.setSelected(enabled);
                 item.setIconURI(enabled ? ICON_ON : ICON_OFF);
-                count++;
             }
         }
-        DevToolsLog.log("Кнопка приведена к состоянию " + (enabled ? "«вкл»" : "«выкл»") + ", кнопок: " + count); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
     }
 }

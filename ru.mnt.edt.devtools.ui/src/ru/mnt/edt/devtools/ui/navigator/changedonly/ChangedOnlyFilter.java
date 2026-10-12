@@ -89,8 +89,7 @@ public class ChangedOnlyFilter extends ViewerFilter {
         if (folderType != null && !snapshot.hasChangesOfType(projectName, folderType)) {
             return false;
         }
-        return hasVisibleChild(viewer, parentPath.createChildPath(element), depth,
-            folderType != null ? folderType : element.getClass().getSimpleName());
+        return hasVisibleChild(viewer, parentPath.createChildPath(element), depth);
     }
 
     /** Есть ли среди предков узла изменённый объект верхнего уровня. */
@@ -110,7 +109,7 @@ public class ChangedOnlyFilter extends ViewerFilter {
      * Слишком глубокую вложенность не проверяем и группу скрываем: в навигаторе EDT
      * группы вложены не глубже 2–3 уровней.
      */
-    private boolean hasVisibleChild(Viewer viewer, TreePath path, int depth, String label) {
+    private boolean hasVisibleChild(Viewer viewer, TreePath path, int depth) {
         Boolean cached = groupCache.get(path);
         if (cached != null) {
             return cached;
@@ -120,29 +119,18 @@ public class ChangedOnlyFilter extends ViewerFilter {
         }
         Object[] children = children(viewer, path);
         boolean visible = false;
-        Object firstVisible = null;
         if (children != null) {
             for (Object child : children) {
                 if (isVisible(viewer, path, child, depth + 1)) {
                     visible = true;
-                    firstVisible = child;
                     break;
                 }
             }
         }
         groupCache.put(path, visible);
-        FilterTrace.log(label + (visible ? " видна" : " скрыта") + ": элементов " //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-            + (children == null ? "?" : children.length) //$NON-NLS-1$
-            + (children != null && children.length > 0 ? ", первый " + describe(children[0]) : "") //$NON-NLS-1$ //$NON-NLS-2$
-            + (firstVisible != null ? ", виден " + describe(firstVisible) : "")); //$NON-NLS-1$ //$NON-NLS-2$
         return visible;
     }
 
-    /** ВРЕМЕННО: описание узла для журнала. */
-    private static String describe(Object node) {
-        MdObjectRef ref = EdtNavigatorNodes.mdObject(node);
-        return node.getClass().getSimpleName() + (ref != null ? "(" + ref + ")" : ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-    }
 
     private static Object[] children(Viewer viewer, TreePath path) {
         if (!(viewer instanceof StructuredViewer structured)) {

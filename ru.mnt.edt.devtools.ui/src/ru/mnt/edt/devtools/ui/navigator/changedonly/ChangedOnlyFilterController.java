@@ -18,7 +18,6 @@ import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.handlers.RegistryToggleState;
 import org.eclipse.ui.navigator.CommonViewer;
 
-import ru.mnt.edt.devtools.core.DevToolsLog;
 import ru.mnt.edt.devtools.core.changes.ChangeTracker;
 import ru.mnt.edt.devtools.core.changes.ChangedObjectsSnapshot;
 import ru.mnt.edt.devtools.ui.edt.EdtNavigator;
@@ -134,7 +133,6 @@ public final class ChangedOnlyFilterController {
         }
         updateSubscription();
         applyToAllNavigators();
-        DevToolsLog.log("Контроллер отбора подключён"); //$NON-NLS-1$
     }
 
     /** Включён ли отбор (нажата ли кнопка). */
@@ -149,7 +147,6 @@ public final class ChangedOnlyFilterController {
         if (state != null) {
             state.setValue(Boolean.valueOf(enabled));
         }
-        DevToolsLog.log("Отбор " + (enabled ? "включён" : "выключен")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
         updateSubscription();
         applyToAllNavigators();
         commandService().refreshElements(COMMAND_ID, null);
@@ -185,7 +182,6 @@ public final class ChangedOnlyFilterController {
             return;
         }
         filter.setSnapshot(snapshot);
-        DevToolsLog.log("Новый снимок изменений, обновляю навигатор: " + (snapshot.isReady() ? snapshot.size() + " объектов" : "не готов")); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
         for (IWorkbenchWindow window : PlatformUI.getWorkbench().getWorkbenchWindows()) {
             for (IWorkbenchPage page : window.getPages()) {
                 EdtNavigator.findViewer(page)
@@ -209,10 +205,8 @@ public final class ChangedOnlyFilterController {
         boolean enabled = isEnabled();
         if (enabled && !attached) {
             viewer.addFilter(filter);
-            DevToolsLog.log("Фильтр добавлен в навигатор"); //$NON-NLS-1$
         } else if (!enabled && attached) {
             viewer.removeFilter(filter);
-            DevToolsLog.log("Фильтр убран из навигатора"); //$NON-NLS-1$
         }
     }
 
