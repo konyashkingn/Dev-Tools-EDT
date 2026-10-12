@@ -88,10 +88,16 @@ public class ChangedOnlyFilter extends ViewerFilter {
             // Быстрая проверка по типу, затем по содержимому: изменения могут относиться
             // к удалённым объектам, которых в папке уже нет, — тогда папка пустая и не нужна
             return snapshot.hasChangesOfType(projectName, folderType)
-                && folderHasChangedObject(viewer, parentPath.createChildPath(element), projectName);
+                && folderHasChangedObject(viewer, parentPath.createChildPath(element), projectName, folderType);
         }
 
-        return hasVisibleChild(viewer, parentPath.createChildPath(element), depth);
+        TreePath groupPath = parentPath.createChildPath(element);
+        boolean known = groupCache.containsKey(groupPath);
+        boolean visible = hasVisibleChild(viewer, groupPath, depth);
+        if (!known && visible) {
+            FilterTrace.log("группа видна: " + element.getClass().getName() + " depth=" + depth); //$NON-NLS-1$ //$NON-NLS-2$
+        }
+        return visible;
     }
 
     /** Есть ли среди предков узла изменённый объект верхнего уровня. */
@@ -111,18 +117,20 @@ public class ChangedOnlyFilter extends ViewerFilter {
      * без рекурсии: это точнее и быстрее. Если содержимое не удалось распознать как объекты,
      * доверяем проверке по типу (папку не скрываем).
      */
-    private boolean folderHasChangedObject(Viewer viewer, TreePath folderPath, String projectName) {
+    private boolean folderHasChangedObject(Viewer viewer, TreePath folderPath, String projectName, String type) {
         Boolean cached = groupCache.get(folderPath);
         if (cached != null) {
             return cached;
         }
         Object[] children = children(viewer, folderPath);
         boolean result;
+        String reason;
         if (children == null) {
             result = true;
+            reason = "содержимое недоступно"; //$NON-NLS-1$
         } else {
             boolean sawObjects = false;
-            boolean changed = false;
+            MdObjectRef changed = null;
             for (Object child : children) {
                 MdObjectRef ref = EdtNavigatorNodes.mdObject(child);
                 if (ref == null) {
@@ -130,12 +138,16 @@ public class ChangedOnlyFilter extends ViewerFilter {
                 }
                 sawObjects = true;
                 if (snapshot.isChanged(projectName, ref)) {
-                    changed = true;
+                    changed = ref;
                     break;
                 }
             }
-            result = changed || !sawObjects && children.length > 0;
+            result = changed != null || !sawObjects && children.length > 0;
+            reason = changed != null ? "изменён " + changed //$NON-NLS-1$
+                : "объектов " + (sawObjects ? "распознано" : "не распознано") + ", элементов " + children.length //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
+                    + (children.length > 0 ? ", первый: " + children[0].getClass().getName() : ""); //$NON-NLS-1$ //$NON-NLS-2$
         }
+        FilterTrace.log("папка " + type + (result ? " видна" : " скрыта") + ": " + reason); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
         groupCache.put(folderPath, result);
         return result;
     }

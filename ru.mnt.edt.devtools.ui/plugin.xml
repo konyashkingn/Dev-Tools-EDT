@@ -2,7 +2,7 @@
 <?eclipse version="3.4"?>
 <plugin>
 
-   <!-- Команда «Только изменённые объекты». Состояние вкл/выкл сохраняется между запусками EDT. -->
+   <!-- Команда «Только изменённые объекты». При запуске EDT отбор всегда выключен. -->
    <extension point="org.eclipse.ui.commands">
       <category
             id="ru.mnt.edt.devtools.ui.category"
@@ -16,7 +16,7 @@
          <state id="org.eclipse.ui.commands.toggleState">
             <class class="org.eclipse.ui.handlers.RegistryToggleState">
                <parameter name="default" value="false"/>
-               <parameter name="persisted" value="true"/>
+               <parameter name="persisted" value="false"/>
             </class>
          </state>
       </command>
@@ -32,11 +32,6 @@
                tooltip="%command.toggleChangedOnly.tooltip"
                style="toggle"/>
       </menuContribution>
-   </extension>
-
-   <!-- Восстановление отбора при запуске EDT, если кнопка была нажата -->
-   <extension point="org.eclipse.ui.startup">
-      <startup class="ru.mnt.edt.devtools.ui.navigator.changedonly.ChangedOnlyStartup"/>
    </extension>
 
 </plugin>

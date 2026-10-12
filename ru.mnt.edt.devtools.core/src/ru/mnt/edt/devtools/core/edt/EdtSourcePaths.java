@@ -1,5 +1,6 @@
 package ru.mnt.edt.devtools.core.edt;
 
+import java.text.Normalizer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -100,7 +101,9 @@ public final class EdtSourcePaths {
         if (type == null || parts.length < 3 || parts[2].isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(new MdObjectRef(type, parts[2]));
+        // Git на macOS может отдавать имена в разложенной форме (NFD: «й» = «и» + знак),
+        // а модель EDT хранит их в составной (NFC) — приводим к одной форме
+        return Optional.of(new MdObjectRef(type, Normalizer.normalize(parts[2], Normalizer.Form.NFC)));
     }
 
     /** Тип объекта верхнего уровня (справочник, документ…), а не подчинённого (реквизит, форма…). */

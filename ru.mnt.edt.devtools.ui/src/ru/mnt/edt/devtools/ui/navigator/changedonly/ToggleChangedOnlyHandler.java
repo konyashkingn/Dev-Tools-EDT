@@ -26,9 +26,7 @@ public class ToggleChangedOnlyHandler extends AbstractHandler implements IElemen
 
     @Override
     public void updateElement(UIElement element, @SuppressWarnings("rawtypes") Map parameters) {
-        ChangedOnlyFilterController controller = ChangedOnlyFilterController.getInstance();
-        controller.ensureInstalled();
-        boolean enabled = controller.isEnabled();
+        boolean enabled = ChangedOnlyFilterController.getInstance().isEnabled();
         element.setChecked(enabled);
         element.setIcon(enabled ? DevToolsImages.CHANGED_ONLY_ON : DevToolsImages.CHANGED_ONLY_OFF);
         element.setTooltip(enabled ? Messages.ChangedOnly_tooltipOn : Messages.ChangedOnly_tooltipOff);

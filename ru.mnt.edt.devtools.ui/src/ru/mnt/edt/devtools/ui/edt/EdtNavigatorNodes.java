@@ -1,6 +1,7 @@
 package ru.mnt.edt.devtools.ui.edt;
 
 import java.lang.reflect.Method;
+import java.text.Normalizer;
 import java.util.Optional;
 
 import org.eclipse.core.resources.IProject;
@@ -66,7 +67,8 @@ public final class EdtNavigatorNodes {
         }
         EStructuralFeature nameFeature = eClass.getEStructuralFeature(NAME_FEATURE);
         Object name = nameFeature == null ? null : object.eGet(nameFeature);
-        return name instanceof String text ? new MdObjectRef(eClass.getName(), text) : null;
+        return name instanceof String text
+            ? new MdObjectRef(eClass.getName(), Normalizer.normalize(text, Normalizer.Form.NFC)) : null;
     }
 
     /** Тип объектов в папке навигатора («Справочники» → Catalog); null, если узел не такая папка. */

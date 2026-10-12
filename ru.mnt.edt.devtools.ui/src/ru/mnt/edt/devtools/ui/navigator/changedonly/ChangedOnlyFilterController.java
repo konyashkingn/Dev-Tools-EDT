@@ -23,7 +23,7 @@ import ru.mnt.edt.devtools.ui.edt.EdtNavigator;
 
 /**
  * Включает и выключает отбор «Только изменённые» во всех открытых навигаторах.
- * Состояние кнопки хранится в состоянии команды (RegistryToggleState) и переживает перезапуск EDT.
+ * Состояние кнопки хранится в состоянии команды (RegistryToggleState); при запуске EDT отбор выключен.
  * Пока отбор включён, подписан на {@link ChangeTracker} и обновляет навигатор при изменениях в Git.
  * Все методы вызываются из UI-потока.
  */
@@ -90,16 +90,6 @@ public final class ChangedOnlyFilterController {
 
     public static ChangedOnlyFilterController getInstance() {
         return INSTANCE;
-    }
-
-    /**
-     * Подключает контроллер позже, если этого ещё не случилось. Вызывается при отрисовке кнопки:
-     * так отбор восстанавливается при запуске EDT, даже если ранний запуск плагинов отключён.
-     */
-    public void ensureInstalled() {
-        if (!installed) {
-            PlatformUI.getWorkbench().getDisplay().asyncExec(this::install);
-        }
     }
 
     /** Подключает слушатели и применяет сохранённое состояние. Повторный вызов ничего не делает. */
